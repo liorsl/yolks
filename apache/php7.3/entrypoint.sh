@@ -1,4 +1,13 @@
 #!/bin/bash
+
+# Default the TZ environment variable to UTC.
+TZ=${TZ:-UTC}
+export TZ
+
+# Set environment variable that holds the Internal Docker IP
+INTERNAL_IP=$(ip route get 1 | awk '{print $NF;exit}')
+export INTERNAL_IP
+
 cd /home/container
 
 # Output php version
