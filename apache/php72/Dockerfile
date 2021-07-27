@@ -7,6 +7,7 @@ LABEL       org.opencontainers.image.licenses=MIT
 
 RUN docker-php-ext-install mysqli && docker-php-ext-enable mysqli
 RUN apt-get update && apt-get install -y \
+	  iproute2 \
       libicu-dev \
       libpq-dev \
       #libmcrypt-dev \
@@ -39,16 +40,20 @@ RUN docker-php-ext-install -j$(nproc) gd
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git zip
 
-# Pterodactyl stuff go here
-RUN adduser -D -h /home/container container
+# This part changes the document root, it needs to run before switching user otherwise the build process will result in a file permission error
+ENV APACHE_DOCUMENT_ROOT /home/container/wwwdocs
+#RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-enabled/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf /etc/apache2/conf-enabled/*.conf
 
+RUN useradd -m --home /home/container container
 USER container
 ENV  USER=container HOME=/home/container
 WORKDIR     /home/container
-ENV APACHE_DOCUMENT_ROOT /home/container
 
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+# Copy some modified configuration files
+COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY ports.conf /etc/apache2/ports.conf
+COPY apache2.conf /etc/apache2/apache2.conf
 
 COPY entrypoint.sh /entrypoint.sh
 CMD ["/bin/bash", "/entrypoint.sh"]
